@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  VpcOwn:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/24 # IPs: 10.0.0.0 - 10.0.0.255
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+
+  SubnetPublicOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/26 # (IPs: 10.0.0.0 - 10.0.0.63)
+      AvailabilityZone: us-east-2a
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: VpcOwn
+
+  SubnetPublicTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.64/26 # IPs: 10.0.0.64 - 10.0.0.127
+      AvailabilityZone: us-east-2b
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: VpcOwn
+
+  SubnetPrivateOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.128/26 # IPs: 10.0.0.128 - 10.0.0.191
+      AvailabilityZone: us-east-2a
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: VpcOwn
+
+  SubnetPrivateTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.192/26 # IPs: 10.0.0.192 - 10.0.0.255
+      AvailabilityZone: us-east-2b
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: VpcOwn
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: creator
+        Value: javidec
+
+  InternetGatewayAttachVpcOwn:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: VpcOwn
