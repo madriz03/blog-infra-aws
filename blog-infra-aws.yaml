@@ -58,3 +58,18 @@ Resources:
         Ref: InternetGateway
       VpcId:
         Ref: VpcOwn
+
+  NATGatewayEIP:
+   Type: AWS::EC2::EIP
+   Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: InternetGatewayAttachVpcOwn # Espera a que exista una IGW Adjunta
+    Properties:
+      ConnectivityType: public
+      SubnetId:
+        Ref: SubnetPublicOne
+      AllocationId:
+        Fn::GetAtt: [NATGatewayEIP, AllocationId]
