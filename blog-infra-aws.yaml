@@ -13,7 +13,7 @@ Resources:
     Properties:
       CidrBlock: 10.0.0.0/26 # (IPs: 10.0.0.0 - 10.0.0.63)
       AvailabilityZone: us-east-2a
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: true # Asignacion de ip publica automaticamente
       VpcId:
         Ref: VpcOwn
 
@@ -22,7 +22,7 @@ Resources:
     Properties:
       CidrBlock: 10.0.0.64/26 # IPs: 10.0.0.64 - 10.0.0.127
       AvailabilityZone: us-east-2b
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: true # Asignacion de ip publica automaticamente
       VpcId:
         Ref: VpcOwn
 
@@ -31,7 +31,7 @@ Resources:
     Properties:
       CidrBlock: 10.0.0.128/26 # IPs: 10.0.0.128 - 10.0.0.191
       AvailabilityZone: us-east-2a
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       VpcId:
         Ref: VpcOwn
 
@@ -40,7 +40,7 @@ Resources:
     Properties:
       CidrBlock: 10.0.0.192/26 # IPs: 10.0.0.192 - 10.0.0.255
       AvailabilityZone: us-east-2b
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       VpcId:
         Ref: VpcOwn
 
@@ -66,10 +66,77 @@ Resources:
 
   NatGateway:
     Type: AWS::EC2::NatGateway
-    DependsOn: InternetGatewayAttachVpcOwn # Espera a que exista una IGW Adjunta
+    DependsOn: InternetGatewayAttachVpcOwn # Espera a que exista una IGW Adjunta, una NAT tiene sentido si existe conexion a internet
     Properties:
       ConnectivityType: public
       SubnetId:
         Ref: SubnetPublicOne
       AllocationId:
         Fn::GetAtt: [NATGatewayEIP, AllocationId]
+
+
+  RoutetablePublicSubnets:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VpcOwn
+
+
+  TableAssociationPublicOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutetablePublicSubnets
+      SubnetId:
+        Ref: SubnetPublicOne
+
+  TableAssociationPublicTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutetablePublicSubnets
+      SubnetId:
+        Ref: SubnetPublicTwo
+
+  RouteFromPublicsToIgw:
+    Type: AWS::EC2::Route
+    DependsOn:  InternetGateway
+    Properties:
+      RouteTableId:
+        Ref: RoutetablePublicSubnets
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  
+  
+  RoutetablePrivateSubnets:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VpcOwn
+  
+  TableAssociationPrivateOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutetablePrivateSubnets
+      SubnetId:
+        Ref: SubnetPrivateOne
+
+  TableAssociationPrivateTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutetablePrivateSubnets
+      SubnetId:
+        Ref: SubnetPrivateTwo
+
+  RouteFromPrivatesToNat:
+    Type: AWS::EC2::Route
+    DependsOn: NatGateway
+    Properties:
+      RouteTableId:
+        Ref: RoutetablePrivateSubnets
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway
