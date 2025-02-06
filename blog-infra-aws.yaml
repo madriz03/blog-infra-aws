@@ -163,8 +163,22 @@ Resources:
           CidrIp: 10.0.0.0/24
           FromPort: 5432
           ToPort: 5432
-        -
-          IpProtocol: icmp # SIno se especicica la DB no deberia poder aceptar ping a menos que defina el sg de una instancia como origen
-          CidrIp: 10.0.0.0/24
-          FromPort: -1 # Permitiendo trafico ICMP sin restricciones
-          ToPort: -1
+          
+
+  DbBlog:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      DBName: blogdb
+      AllocatedStorage: 20
+      BackupRetentionPeriod: 0
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      MasterUsername: javidev
+      MasterUserPassword: 12345678
+      MultiAZ: true
+      PubliclyAccessible: false
+      DBSubnetGroupName:
+        Ref: SubnetsGroupToDataBase
+      VPCSecurityGroups:
+        - Ref: SecurityGroupDataBase
