@@ -140,3 +140,31 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId:
         Ref: NatGateway
+
+
+  SubnetsGroupToDataBase:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: The subnets to launch DB instances
+      DBSubnetGroupName: String
+      SubnetIds: 
+        - Ref: SubnetPrivateOne
+        - Ref: SubnetPrivateTwo
+      
+  SecurityGroupDataBase:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Trafic allowed to Database
+      VpcId:
+        Ref: VpcOwn
+      SecurityGroupIngress:
+        -
+          IpProtocol: tcp
+          CidrIp: 10.0.0.0/24
+          FromPort: 5432
+          ToPort: 5432
+        -
+          IpProtocol: icmp # SIno se especicica la DB no deberia poder aceptar ping a menos que defina el sg de una instancia como origen
+          CidrIp: 10.0.0.0/24
+          FromPort: -1 # Permitiendo trafico ICMP sin restricciones
+          ToPort: -1
