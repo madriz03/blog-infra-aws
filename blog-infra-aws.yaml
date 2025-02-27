@@ -118,6 +118,22 @@ Parameters:
       - false
       - true # only for public database
 
+  AsgImageId:
+    Description: The ImageId to launch template
+    Type: String
+
+  AsgInstanceType:
+    Description: Instances class to instance will be deployed into ASG
+    Type: String
+    Defaul: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+
+  AsgKeyName:
+    Description: Key SSH Connection to each instance into ASG
+    Type: String
+
 Resources:
   VpcOwn:
     Type: AWS::EC2::VPC
@@ -291,7 +307,7 @@ Resources:
       SecurityGroupIngress:
         -
           IpProtocol: tcp
-          CidrIp: 10.0.0.0/24 # Paraetrizar or get this value with a function
+          CidrIp: 10.0.0.0/24 # Parametrizar or get this value with a function
           FromPort: 5432
           ToPort: 5432
           
@@ -392,3 +408,74 @@ Resources:
         Ref: VpcOwn
 
 
+  RolAsg:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: "Our instance have need access to database, secreat manager, etc"
+      RolName: djangoblog
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'ec2.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+  InstanceProfileToAsg:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: '/'
+      Roles:
+        - Ref: RolAsg
+   
+  LaunchTemplateBlogDjango:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName:
+          Fn::Sub: "${AWS::StackName}-blog-django"
+      LaunchTemplateData:
+        ImageId:
+          Ref: ImageId
+        InstanceType:
+          Ref: AsgInstanceType
+        IamInstanceProfile:
+          Ref: InstanceProfileToAsg
+        KeyName:
+          Ref: AsgKeyName
+        SecurityGroupIds:
+          - Ref: SecurityGroupAsg
+        UserData:
+          # Scripts donde se deben obtener todos los valores de variables de entorno desde secret manager y tambien hacer migraciones.
+
+  Asg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: 
+        Fn::Sub: ${AWS::StackName}-AsgBlogDjango
+      AvailabilityZones:
+        - Ref: SubnetPublicOne
+        - Ref: SubnetPublicTwo
+      Cooldown: 300
+      DesiredCapacity: 1
+      MinSize: 1
+      MaxSize: 2 # should exist a scable policy to the ASG deploy a new instance
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB
+      LaunchTemplate: 
+        LaunchTemplateId:
+          Ref: LaunchTemplateBlogDjango
+      Version: 
+        Fn::GetAtt: [LaunchTemplateBlogDjango, LatestVersionNumber]
+      MetricsCollection:
+        - Granularity: '1Minute' # Metrics will be send every minute
+          Metrics: [] # Include all metrics
+      TargetGroupARNs:
+        Ref: TargetGroupBlog
+      # NotificationConfigurations: Para configurar que comportamiento de las instancias se debe notificar a un topico SNS como por ejemplo: Se lanzo una nueva instancia o se termino alguna de las existentes.
