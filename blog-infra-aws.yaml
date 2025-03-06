@@ -125,7 +125,7 @@ Parameters:
   AsgInstanceType:
     Description: Instances class to instance will be deployed into ASG
     Type: String
-    Defaul: t2.micro
+    Default: t2.micro
     AllowedValues:
       - t2.micro
       - t3.micro
@@ -293,7 +293,6 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: The subnets to launch DB instances
-      DBSubnetGroupName: String
       SubnetIds: 
         - Ref: SubnetPrivateOne
         - Ref: SubnetPrivateTwo
@@ -307,10 +306,10 @@ Resources:
       SecurityGroupIngress:
         -
           IpProtocol: tcp
-          CidrIp: 10.0.0.0/24 # Parametrizar or get this value with a function
           FromPort: 5432
           ToPort: 5432
-          
+          CidrIp:
+            Ref: CidrVpc
 
   SecurityGroupAlb:
     Type: AWS::EC2::SecurityGroup
@@ -320,7 +319,7 @@ Resources:
         Ref: VpcOwn
       SecurityGroupIngress:
         - 
-          Ipprotocol: tcp
+          IpProtocol: tcp
           CidrIp: 0.0.0.0/0
           FromPort: 80
           ToPort: 80
@@ -334,7 +333,7 @@ Resources:
         Ref: VpcOwn
       SecurityGroupIngress:
         - 
-          Ipprotocol: tcp
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId:
@@ -408,11 +407,11 @@ Resources:
         Ref: VpcOwn
 
 
-  RolAsg:
+  RoleAsg:
     Type: AWS::IAM::Role
     Properties:
       Description: "Our instance have need access to database, secreat manager, etc"
-      RolName: djangoblog
+      RoleName: djangoblog
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -433,7 +432,7 @@ Resources:
     Properties:
       Path: '/'
       Roles:
-        - Ref: RolAsg
+        - Ref: RoleAsg
    
   LaunchTemplateBlogDjango:
     Type: AWS::EC2::LaunchTemplate
@@ -442,7 +441,7 @@ Resources:
           Fn::Sub: "${AWS::StackName}-blog-django"
       LaunchTemplateData:
         ImageId:
-          Ref: ImageId
+          Ref: AsgImageId
         InstanceType:
           Ref: AsgInstanceType
         IamInstanceProfile:
@@ -452,7 +451,13 @@ Resources:
         SecurityGroupIds:
           - Ref: SecurityGroupAsg
         UserData:
-          # Scripts donde se deben obtener todos los valores de variables de entorno desde secret manager y tambien hacer migraciones.
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            export ALB_DNS=${AlbBlog.DNSName}
+            apt-get update && apt-get install -y jq
+            aws s3 cp s3://blogjavidev/blog.sh /tmp/script.sh
+            chmod +x /tmp/script.sh
+            /tmp/script.sh
 
   Asg:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -477,5 +482,5 @@ Resources:
         - Granularity: '1Minute' # Metrics will be send every minute
           Metrics: [] # Include all metrics
       TargetGroupARNs:
-        Ref: TargetGroupBlog
+        - Ref: TargetGroupBlog
       # NotificationConfigurations: Para configurar que comportamiento de las instancias se debe notificar a un topico SNS como por ejemplo: Se lanzo una nueva instancia o se termino alguna de las existentes.
