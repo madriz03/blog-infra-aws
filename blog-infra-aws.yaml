@@ -339,6 +339,12 @@ Resources:
           SourceSecurityGroupId:
             Ref: SecurityGroupAlb
 
+        -
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
 
   DbBlog:
     Type: AWS::RDS::DBInstance
@@ -445,39 +451,41 @@ Resources:
         InstanceType:
           Ref: AsgInstanceType
         IamInstanceProfile:
-          Ref: InstanceProfileToAsg
+          Name:
+            Ref: InstanceProfileToAsg
         KeyName:
           Ref: AsgKeyName
         SecurityGroupIds:
           - Ref: SecurityGroupAsg
         UserData:
           Fn::Base64: !Sub |
-            #!/bin/bash
-            export ALB_DNS=${AlbBlog.DNSName}
-            apt-get update && apt-get install -y jq
-            aws s3 cp s3://blogjavidev/blog.sh /tmp/script.sh
-            chmod +x /tmp/script.sh
-            /tmp/script.sh
+            !/bin/bash
+            export ALB_DNS="${AlbBlog.DNSName}"
+            apt-get install -y jq
+            aws s3 cp s3://blogjavidev/blog.sh /tmp/blog.sh
+            chmod +x /tmp/blog.sh
+            /tmp/blog.sh
 
   Asg:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: InternetGatewayAttachVpcOwn
     Properties:
       AutoScalingGroupName: 
         Fn::Sub: ${AWS::StackName}-AsgBlogDjango
-      AvailabilityZones:
+      VPCZoneIdentifier:
         - Ref: SubnetPublicOne
         - Ref: SubnetPublicTwo
       Cooldown: 300
-      DesiredCapacity: 1
+      DesiredCapacity: 2
       MinSize: 1
-      MaxSize: 2 # should exist a scable policy to the ASG deploy a new instance
-      HealthCheckGracePeriod: 300
+      MaxSize: 3 # should exist a scable policy to the ASG deploy a new instance
+      HealthCheckGracePeriod: 600
       HealthCheckType: ELB
       LaunchTemplate: 
         LaunchTemplateId:
           Ref: LaunchTemplateBlogDjango
-      Version: 
-        Fn::GetAtt: [LaunchTemplateBlogDjango, LatestVersionNumber]
+        Version: 
+          Fn::GetAtt: [LaunchTemplateBlogDjango, LatestVersionNumber]
       MetricsCollection:
         - Granularity: '1Minute' # Metrics will be send every minute
           Metrics: [] # Include all metrics

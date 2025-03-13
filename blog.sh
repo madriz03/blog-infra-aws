@@ -13,6 +13,8 @@ export DATABASE_PORT=$(echo $SECRET_JSON | jq -r '.DATABASE_PORT')
 
 # Supongamos que ALB_DNS se pasa directamente desde CloudFormation mediante parámetros
 export ALB_DNS="${ALB_DNS}"
+export ALLOWED_HOSTS="${ALB_DNS}"
+
 
 # Reemplaza el placeholder en la configuración de Nginx
 NGINX_CONF="/etc/nginx/sites-available/blog"
@@ -22,9 +24,10 @@ sed -i "s/{{ALB_DNS}}/${ALB_DNS}/g" $NGINX_CONF
 systemctl restart nginx
 
 # Ejecuta migraciones de Django
-cd /home/ubuntu/BlogJaviDev
-source /home/ubuntu/venv/bin/activate
+cd /home/ubuntu/BlogJaviDev/blog
+source /home/ubuntu/myenv/bin/activate
 python manage.py migrate
 
 # Reinicia Gunicorn (si aplica)
+systemctl restart nginx
 systemctl restart gunicorn
