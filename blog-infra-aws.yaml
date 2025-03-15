@@ -458,17 +458,32 @@ Resources:
         SecurityGroupIds:
           - Ref: SecurityGroupAsg
         UserData:
-          Fn::Base64: !Sub |
-            !/bin/bash
-            export ALB_DNS="${AlbBlog.DNSName}"
-            apt-get install -y jq
-            aws s3 cp s3://blogjavidev/blog.sh /tmp/blog.sh
-            chmod +x /tmp/blog.sh
-            /tmp/blog.sh
+          Fn::Base64:
+            Fn::Sub:
+              - |
+                #!/bin/bash
+                ALB_DNS=${ALB_DNS}
+                ALLOWED_HOSTS=${ALB_DNS}
+                DATABASE_HOST=${DATABASE_HOST}
+                NGINX_CONF="/etc/nginx/sites-available/blog"
+                sudo sed -i "s/\${ALB_DNS}/$ALB_DNS/g" $NGINX_CONF
+                export ALB_DNS="$ALB_DNS"
+                export ALLOWED_HOSTS="$ALB_DNS"
+                export DATABASE_HOST="$DATABASE_HOST"
+                echo "ALB_DNS=$ALB_DNS" | sudo tee -a /etc/environment
+                echo "ALLOWED_HOSTS=$ALLOWED_HOSTS" | sudo tee -a /etc/environment
+                echo "DATABASE_HOST=$DATABASE_HOST" | sudo tee -a /etc/environment
+                aws s3 cp s3://blogjavidev/blog.sh /tmp/blog.sh
+                sudo chmod +x /tmp/blog.sh
+                sudo /tmp/blog.sh
+              - ALB_DNS: !GetAtt AlbBlog.DNSName
+                DATABASE_HOST: !GetAtt DbBlog.Endpoint.Address
 
   Asg:
     Type: AWS::AutoScaling::AutoScalingGroup
-    DependsOn: InternetGatewayAttachVpcOwn
+    DependsOn: 
+      - InternetGatewayAttachVpcOwn
+      - DbBlog
     Properties:
       AutoScalingGroupName: 
         Fn::Sub: ${AWS::StackName}-AsgBlogDjango
@@ -479,7 +494,7 @@ Resources:
       DesiredCapacity: 2
       MinSize: 1
       MaxSize: 3 # should exist a scable policy to the ASG deploy a new instance
-      HealthCheckGracePeriod: 600
+      HealthCheckGracePeriod: 300
       HealthCheckType: ELB
       LaunchTemplate: 
         LaunchTemplateId:

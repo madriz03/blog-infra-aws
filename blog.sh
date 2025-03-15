@@ -1,6 +1,13 @@
 #!/bin/bash
-# Recupera secretos desde Secrets Manager (ejemplo simplificado)
+
+# Recupera secretos desde AWS Secrets Manager
 SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id prod/blog/settings/nginx --query 'SecretString' --output text)
+
+# Validar si el secreto se obtuvo correctamente
+if [[ -z "$SECRET_JSON" ]]; then
+    echo "Error: No se pudo recuperar el secreto de AWS Secrets Manager."
+    exit 1
+fi
 
 # Extrae valores con jq (asegúrate de tener instalado jq o usa otro método)
 export SECRET_KEY=$(echo $SECRET_JSON | jq -r '.SECRET_KEY')
@@ -11,23 +18,27 @@ export DATABASE_PASSWORD=$(echo $SECRET_JSON | jq -r '.DATABASE_PASSWORD')
 export DATABASE_NAME=$(echo $SECRET_JSON | jq -r '.DATABASE_NAME')
 export DATABASE_PORT=$(echo $SECRET_JSON | jq -r '.DATABASE_PORT')
 
-# Supongamos que ALB_DNS se pasa directamente desde CloudFormation mediante parámetros
-export ALB_DNS="${ALB_DNS}"
-export ALLOWED_HOSTS="${ALB_DNS}"
 
+# Guarda las variables de entorno para que persistan
+echo "SECRET_KEY=$SECRET_KEY" | sudo tee -a /etc/environment
+echo "API_URL=$API_URL" | sudo tee -a /etc/environment
+echo "DEBUG=$DEBUG" | sudo tee -a /etc/environment
+echo "DATABASE_USER=$DATABASE_USER" | sudo tee -a /etc/environment
+echo "DATABASE_PASSWORD=$DATABASE_PASSWORD" | sudo tee -a /etc/environment
+echo "DATABASE_NAME=$DATABASE_NAME" | sudo tee -a /etc/environment
+echo "DATABASE_PORT=$DATABASE_PORT" | sudo tee -a /etc/environment
 
-# Reemplaza el placeholder en la configuración de Nginx
-NGINX_CONF="/etc/nginx/sites-available/blog"
-sed -i "s/{{ALB_DNS}}/${ALB_DNS}/g" $NGINX_CONF
+# Recargar las variables de entorno
+source /etc/environment
+
 
 # Reinicia Nginx para aplicar los cambios
-systemctl restart nginx
+sudo systemctl restart nginx
 
 # Ejecuta migraciones de Django
 cd /home/ubuntu/BlogJaviDev/blog
 source /home/ubuntu/myenv/bin/activate
-python manage.py migrate
+python3 manage.py migrate
 
 # Reinicia Gunicorn (si aplica)
-systemctl restart nginx
 systemctl restart gunicorn
