@@ -55,7 +55,7 @@ La infraestructura incluye los siguientes componentes:
 2. **RDS PostgreSQL**: Base de datos relacional para almacenar los datos del blog.
 3. **Auto Scaling Group**: Gestiona automáticamente las instancias EC2 que ejecutan la aplicación.
 4. **Application Load Balancer**: Distribuye el tráfico entre las instancias.
-5. **Script de Inicialización**: Configura las instancias EC2 al iniciar, obteniendo credenciales desde AWS Secrets Manager.
+5. **Script de Inicialización (blog.sh)**: Script que se ejecuta al iniciar las instancias EC2. Recupera credenciales desde AWS Secrets Manager, configura variables de entorno para la aplicación Django, ejecuta migraciones de base de datos y reinicia los servicios necesarios (Nginx y Gunicorn).
 
 ## Despliegue
 
@@ -95,6 +95,18 @@ La infraestructura implementa varias capas de seguridad:
 - Grupos de seguridad restrictivos
 - Credenciales almacenadas en AWS Secrets Manager
 - Acceso SSH limitado a las instancias EC2
+
+## Script de Inicialización (blog.sh)
+
+El archivo `blog.sh` es un script de inicialización que se ejecuta en cada instancia EC2 al momento de su lanzamiento. Sus principales funciones son:
+
+- Recuperar credenciales y configuraciones desde AWS Secrets Manager
+- Configurar variables de entorno necesarias para la aplicación Django
+- Guardar estas variables en `/etc/environment` para que persistan
+- Ejecutar migraciones de la base de datos Django
+- Reiniciar los servicios Nginx y Gunicorn para aplicar los cambios
+
+Este script es fundamental para la automatización del despliegue, ya que permite que cada nueva instancia se configure correctamente sin intervención manual.
 
 ## Tecnologías Utilizadas
 
