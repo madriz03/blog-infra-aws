@@ -36,7 +36,7 @@ Parameters:
   IpLaunchPublicSubnet:
     Description: If this valie is true allow that the resources will be launched with public ip
     Type: String
-    Default: True
+    Default: true
     AllowedValues:
       - true 
       - false
